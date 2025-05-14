@@ -6,7 +6,6 @@ import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 
 export async function GET(req: Request) {
-  // Parse URL and extract token from query parameters.
   const { searchParams } = new URL(req.url);
   const token = searchParams.get("token");
 
@@ -17,7 +16,6 @@ export async function GET(req: Request) {
   try {
     await connectToDatabase();
 
-    // Find and delete the magic link token if it exists and is not expired.
     const tokenDoc = await Token.findOneAndDelete({
       token,
       type: "magicLink",
@@ -26,15 +24,12 @@ export async function GET(req: Request) {
 
     if (!tokenDoc) return invalidTokenResponse();
 
-    // Retrieve the user associated with this token.
     const user = await User.findById(tokenDoc.userId);
     if (!user) return userNotFoundResponse();
 
-    // Mark the user's email as verified.
     user.emailVerified = new Date();
     await user.save();
 
-    // Generate a short-lived JWT token.
     const jwtToken = await new SignJWT({ 
       userId: user._id.toString(), 
       email: user.email, 
@@ -44,20 +39,13 @@ export async function GET(req: Request) {
       .setExpirationTime('1h')
       .sign(new TextEncoder().encode(process.env.JWT_SECRET!));
 
-    // Ensure that the base URL is defined in your environment.
-    if (!process.env.NEXTAUTH_URL) {
-      throw new Error("Missing NEXTAUTH_URL environment variable");
-    }
-    const baseUrl = process.env.NEXTAUTH_URL;
+    // Use relative paths instead of absolute URLs
+    const redirectPath = user.onboarded ? '/dashboard' : '/onboarding';
     
-    // Build the redirect URL based on whether the user has been onboarded.
-    // Adjust the paths based on your application's routing structure.
-    const redirectPath = user.onboarded ? '/login/dashboard' : '/onboarding';
-    const redirectUrl = new URL(`${baseUrl}${redirectPath}`);
-    redirectUrl.searchParams.set('success', 'true');
-
-    // Create a redirect response and set the session cookie.
-    const response = NextResponse.redirect(redirectUrl);
+    // Create a response that will redirect to your frontend
+    const response = NextResponse.redirect(new URL(redirectPath, req.url));
+    
+    // Set the session cookie
     response.cookies.set({
       name: "session",
       value: jwtToken,
@@ -67,9 +55,6 @@ export async function GET(req: Request) {
       path: "/",
       maxAge: 3600
     });
-
-    // Allow credentials for CORS if needed.
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
 
     return response;
   } catch (error) {
