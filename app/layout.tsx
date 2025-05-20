@@ -36,7 +36,6 @@ export const metadata: Metadata = {
     title: "ConnectAPI - Enterprise API Solutions",
     description: "Enterprise-grade API solutions for modern businesses",
   },
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({

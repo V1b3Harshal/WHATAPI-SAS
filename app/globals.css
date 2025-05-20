@@ -72,7 +72,21 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: 
+      radial-gradient(circle at 25% 25%, hsl(var(--primary)/0.05) 0%, transparent 30%),
+      radial-gradient(circle at 75% 75%, hsl(var(--primary)/0.05) 0%, transparent 30%);
+    background-size: 100% 100%;
+    background-attachment: fixed;
   }
+  
+  .dark body {
+    background-image: 
+      radial-gradient(circle at 10% 20%, hsl(var(--primary)/0.08) 0%, transparent 25%),
+      radial-gradient(circle at 90% 80%, hsl(var(--primary)/0.08) 0%, transparent 25%),
+      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--background)));
+    background-size: 100% 100%;
+  }
+
   h1,
   h2,
   h3,
@@ -84,6 +98,7 @@
 }
 
 @layer components {
+  
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-violet-600;
   }
@@ -126,5 +141,62 @@
 
   .body-sm {
     @apply text-sm text-muted-foreground;
+  }
+
+  /* New background elements */
+  .bg-pattern {
+    @apply relative overflow-hidden;
+  }
+  
+  .bg-pattern::before {
+    content: "";
+    @apply absolute inset-0 -z-10;
+    background-image: 
+      radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0);
+    background-size: 40px 40px;
+    opacity: 0.15;
+  }
+
+  .dark .bg-pattern::before {
+    background-image: 
+      radial-gradient(circle at 1px 1px, hsl(var(--primary)/0.4) 1px, transparent 0);
+    opacity: 0.1;
+  }
+
+  .bg-grid {
+    @apply relative overflow-hidden;
+  }
+  
+  .bg-grid::before {
+    content: "";
+    @apply absolute inset-0 -z-10;
+    background-image: 
+      linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.1;
+  }
+
+  .dark .bg-grid::before {
+    background-image: 
+      linear-gradient(to right, hsl(var(--primary)/0.3) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--primary)/0.3) 1px, transparent 1px);
+  }
+
+  .bg-dots {
+    @apply relative overflow-hidden;
+  }
+  
+  .bg-dots::before {
+    content: "";
+    @apply absolute inset-0 -z-10;
+    background-image: 
+      radial-gradient(circle at center, hsl(var(--primary)/0.1) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+
+  .dark .bg-dots::before {
+    background-image: 
+      radial-gradient(circle at center, hsl(var(--primary)/0.2) 1px, transparent 1px);
   }
 }

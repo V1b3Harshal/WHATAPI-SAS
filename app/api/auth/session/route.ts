@@ -4,22 +4,23 @@ import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/model/User";
-import Session from "@/model/Session"; // Import your new session model
+import Session from "@/model/Session";
 
-// Rename the interface to avoid conflict with jose's JWTPayload
+// Updated interface with role
 interface CustomJWTPayload {
   userId: string;
   email: string;
   name?: string;
   onboarded: boolean;
   sessionId?: string;
+  role?: string; // Add role here
 }
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // Get cookies from the request.
+    // Get cookies from the request
     const cookieStore = (await cookies()) as unknown as {
       getAll: () => Array<{ name: string; value: string }>;
       get: (name: string) => { value: string } | undefined;
@@ -38,18 +39,18 @@ export async function GET() {
     }
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     
-    // Verify the token and extract the payload.
+    // Verify the token
     const { payload } = await jwtVerify(token, secret);
     
     if (!payload || typeof payload !== 'object') {
       throw new Error("Invalid token payload");
     }
     
-    // Cast the payload to our custom interface.
-    const { userId, email, name: tokenName, onboarded, sessionId } =
+    // Cast the payload
+    const { userId, email, name: tokenName, onboarded, sessionId, role: tokenRole } =
       (payload as unknown) as CustomJWTPayload;
     
-    // Validate required fields.
+    // Validate required fields
     if (!userId || !email) {
       return NextResponse.json(
         { authenticated: false, error: "Invalid token payload" },
@@ -57,7 +58,7 @@ export async function GET() {
       );
     }
     
-    // Connect to the database to retrieve updated user data.
+    // Connect to database
     await connectToDatabase();
     const user = await User.findById(userId);
     if (!user) {
@@ -67,10 +68,11 @@ export async function GET() {
       );
     }
 
-    // Derive the user's name from the token or fallback to the database.
+    // Get values with fallbacks
     const finalName = tokenName ?? user.name;
+    const finalRole = tokenRole ?? user.role ?? 'user'; // Fallback to 'user' if not specified
     
-    // (Optional) Update the corresponding session's lastActivity if provided.
+    // Update session activity if sessionId exists
     if (sessionId) {
       await Session.findOneAndUpdate({ sessionId }, { lastActivity: new Date() });
     }
@@ -81,7 +83,8 @@ export async function GET() {
       userId,
       email,
       name: finalName,
-      sessionId, // Returning sessionId can be useful for debugging.
+      role: finalRole, // Include role in response
+      sessionId,
     });
     
   } catch (err) {

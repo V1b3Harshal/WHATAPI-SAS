@@ -14,6 +14,7 @@ interface SessionData {
   userId?: string
   email?: string
   name?: string
+  role?: string 
   creditsLeft?: number
   totalCreditsUsed?: number
   error?: string
@@ -133,6 +134,16 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+          {session.role === 'admin' && (
+    <Button 
+      variant="outline" 
+      onClick={() => router.push('/admin')}
+      className="gap-2"
+    >
+      <Activity className="h-5 w-5" />
+      Admin Panel
+    </Button>
+  )}
             <Button variant="outline" size="icon" onClick={toggleTheme}>
               {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </Button>
