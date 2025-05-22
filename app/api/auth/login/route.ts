@@ -49,7 +49,6 @@ function isInCooldown(email: string): boolean {
   loginCooldownStore.set(email, Date.now());
   return false;
 }
-
 export async function POST(req: Request) {
   const { email, password } = await req.json();
 
@@ -62,7 +61,6 @@ export async function POST(req: Request) {
   }
 
   // --- Extract Client IP ---
-  // Adjust header names based on your deployment.
   const ip = req.headers.get("x-forwarded-for") ||
              req.headers.get("x-real-ip") ||
              "unknown";
@@ -91,20 +89,47 @@ export async function POST(req: Request) {
 
   try {
     await connectToDatabase();
-    const user = await User.findOne({ email });
+    
+    // IMPORTANT: Select the password field explicitly
+    const user = await User.findOne({ email }).select('+password');
     
     // Return proper error if user is not found.
     if (!user) {
       return NextResponse.json(
-        { message: "User not found" },
-        { status: 404 }
+        { message: "Invalid email or password" }, // Generic message for security
+        { status: 401 }
+      );
+    }
+
+    // Check if user has a password set - provide clearer message
+    if (!user.password) {
+      return NextResponse.json(
+        { 
+          message: "This account uses passwordless login",
+          suggestedAction: "try_magic_link",
+          email: user.email 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate password.
+    const passwordMatches = await bcrypt.compare(password, user.password);
+    if (!passwordMatches) {
+      return NextResponse.json(
+        { message: "Invalid email or password" }, // Generic message for security
+        { status: 401 }
       );
     }
 
     // Check if email is verified.
     if (!user.emailVerified) {
       return NextResponse.json(
-        { message: "Email not verified", unverified: true, email: user.email },
+        { 
+          message: "Email not verified", 
+          unverified: true, 
+          email: user.email 
+        },
         { status: 401 }
       );
     }
@@ -114,15 +139,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { message: "User account is banned" },
         { status: 403 }
-      );
-    }
-
-    // Validate password.
-    const passwordMatches = await bcrypt.compare(password, user.password);
-    if (!passwordMatches) {
-      return NextResponse.json(
-        { message: "Incorrect password" },
-        { status: 401 }
       );
     }
 
@@ -154,7 +170,8 @@ export async function POST(req: Request) {
       email: user.email,
       name: user.name,
       onboarded: user.onboarded,
-      sessionId // Include sessionId in the payload.
+      sessionId,
+      role: user.role
     })
       .setProtectedHeader({ alg: "HS256" })
       .setExpirationTime("1h")

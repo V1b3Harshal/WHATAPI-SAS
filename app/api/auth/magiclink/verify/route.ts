@@ -29,16 +29,17 @@ export async function GET(req: Request) {
 
     user.emailVerified = new Date();
     await user.save();
-
-    const jwtToken = await new SignJWT({ 
-      userId: user._id.toString(), 
-      email: user.email, 
-      onboarded: user.onboarded 
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('1h')
-      .sign(new TextEncoder().encode(process.env.JWT_SECRET!));
-
+// app/api/auth/magiclink/verify/route.ts
+// Update JWT creation to include role
+const jwtToken = await new SignJWT({ 
+  userId: user._id.toString(), 
+  email: user.email, 
+  onboarded: user.onboarded,
+  role: user.role // Add this line
+})
+  .setProtectedHeader({ alg: 'HS256' })
+  .setExpirationTime('1h')
+  .sign(new TextEncoder().encode(process.env.JWT_SECRET!));
     // Use relative paths instead of absolute URLs
     const redirectPath = user.onboarded ? '/dashboard' : '/onboarding';
     

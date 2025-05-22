@@ -6,14 +6,13 @@ import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/model/User";
 import Session from "@/model/Session";
 
-// Updated interface with role
 interface CustomJWTPayload {
   userId: string;
   email: string;
   name?: string;
   onboarded: boolean;
   sessionId?: string;
-  role?: string; // Add role here
+  role?: string;
 }
 
 export const dynamic = 'force-dynamic';
@@ -21,12 +20,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // Get cookies from the request
-    const cookieStore = (await cookies()) as unknown as {
-      getAll: () => Array<{ name: string; value: string }>;
-      get: (name: string) => { value: string } | undefined;
-    };
-
-    const token = cookieStore.get('session')?.value;
+    const cookieStore = cookies();
+    const token = (await cookieStore).get('session')?.value;
+    
     if (!token) {
       return NextResponse.json(
         { authenticated: false, error: "No session token" },
@@ -37,6 +33,7 @@ export async function GET() {
     if (!process.env.JWT_SECRET) {
       throw new Error("Missing JWT_SECRET environment variable");
     }
+    
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     
     // Verify the token
@@ -46,10 +43,10 @@ export async function GET() {
       throw new Error("Invalid token payload");
     }
     
-    // Cast the payload
+    // Extract and validate payload
     const { userId, email, name: tokenName, onboarded, sessionId, role: tokenRole } =
-      (payload as unknown) as CustomJWTPayload;
-    
+      payload as unknown as CustomJWTPayload;
+
     // Validate required fields
     if (!userId || !email) {
       return NextResponse.json(
@@ -61,6 +58,7 @@ export async function GET() {
     // Connect to database
     await connectToDatabase();
     const user = await User.findById(userId);
+    
     if (!user) {
       return NextResponse.json(
         { authenticated: false, error: "User not found" },
@@ -68,13 +66,24 @@ export async function GET() {
       );
     }
 
-    // Get values with fallbacks
+    // Ensure role consistency
+    if (tokenRole && tokenRole !== user.role) {
+      return NextResponse.json(
+        { authenticated: false, error: "Role mismatch - please reauthenticate" },
+        { status: 401 }
+      );
+    }
+
+    // Determine final values
     const finalName = tokenName ?? user.name;
-    const finalRole = tokenRole ?? user.role ?? 'user'; // Fallback to 'user' if not specified
+    const finalRole = tokenRole ?? user.role;
     
     // Update session activity if sessionId exists
     if (sessionId) {
-      await Session.findOneAndUpdate({ sessionId }, { lastActivity: new Date() });
+      await Session.findOneAndUpdate(
+        { sessionId }, 
+        { lastActivity: new Date() }
+      );
     }
     
     return NextResponse.json({
@@ -83,7 +92,7 @@ export async function GET() {
       userId,
       email,
       name: finalName,
-      role: finalRole, // Include role in response
+      role: finalRole,
       sessionId,
     });
     

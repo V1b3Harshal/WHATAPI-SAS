@@ -102,6 +102,7 @@ export async function POST(req: Request) {
     email,
     password: hashedPassword,
     emailVerified: null,
+    role: 'user' // Explicitly set default role
   });
   await user.save();
 
